@@ -1,0 +1,90 @@
+on post-fs-data
+# bluetooth
+ mkdir /data/vendor/bluetooth 0770 bluetooth bluetooth
+
+on boot
+ # bluetooth
+ # change back to bluetooth from system
+ chown bluetooth net_bt_admin /data/misc/bluetooth
+ mkdir /data/misc/bluedroid 0770 bluetooth net_bt_admin
+ # bluetooth LPM
+ chown bluetooth net_bt_admin /proc/bluetooth/sleep/lpm
+ chown bluetooth net_bt_admin /proc/bluetooth/sleep/btwrite
+ #USB device
+ insmod /vendor/lib/modules/rtk_btusb.ko
+ chmod 0660 /dev/rtkbt_dev
+ chown bluetooth net_bt_admin /dev/rtkbt_dev
+ # rfkill
+ chmod 0660 /sys/class/rfkill/rfkill0/state
+ chmod 0660 /sys/class/rfkill/rfkill0/type
+ chown bluetooth net_bt_admin /sys/class/rfkill/rfkill0/state
+ chown bluetooth net_bt_admin /sys/class/rfkill/rfkill0/type
+ # bluetooth MAC address programming
+ chown bluetooth net_bt_admin ro.bt.bdaddr_path
+ chown bluetooth net_bt_admin /system/etc/bluetooth
+ chown bluetooth net_bt_admin /data/misc/bluetooth
+ #setprop ro.bt.bdaddr_path "/data/misc/bluetooth/bdaddr"
+
+service dhcpcd_bnep0 /system/bin/dhcpcd -BKLG
+ disabled
+ oneshot
+service dhcpcd_bnep1 /system/bin/dhcpcd -BKLG
+ disabled
+ oneshot
+service dhcpcd_bnep2 /system/bin/dhcpcd -BKLG
+ disabled
+ oneshot
+service dhcpcd_bnep3 /system/bin/dhcpcd -BKLG
+ disabled
+ oneshot
+service dhcpcd_bnep4 /system/bin/dhcpcd -BKLG
+ disabled
+ oneshot
+service dhcpcd_bt-pan /system/bin/dhcpcd -ABKL
+ class main
+ disabled
+ oneshot
+service iprenew_bt-pan /system/bin/dhcpcd -n
+ class main
+ disabled
+ oneshot
+
+# zygote need to be started after otapreopt which will be done on post-fs-data
+on zygote-start
+
+
+# for wifi
+
+    mkdir /data/vendor/wifi 0771 wifi wifi
+    mkdir /data/vendor/wifi/wpa 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
+    
+    chown wifi wifi /sys/module/bcmdhd/parameters/firmware_path
+
+#for nfc
+    chmod 0660 /dev/bcm2079x
+    chown nfc nfc /dev/bcm2079x
+    mkdir /data/nfc
+    mkdir /data/nfc/param
+    chmod 0700 /data/nfc
+    chmod 0700 /data/nfc/param
+    chown nfc nfc /data/nfc
+    chown nfc nfc /data/nfc/param
+
+on property:wlan.driver.status=ok
+    chown wifi wifi /sys/module/bcmdhd/parameters/firmware_path
+    chown wifi wifi /sys/module/bcmdhd/parameters/nvram_path
+
+service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
+    /vendor/etc/wifi/wpa_config.txt
+#   we will start as root and wpa_supplicant will switch to user wifi
+#   after setting up the capabilities required for WEXT
+#   user wifi
+#   group wifi inet keystore
+    interface android.hardware.wifi.supplicant@1.0::ISupplicant default
+    interface android.hardware.wifi.supplicant@1.1::ISupplicant default
+    class main
+    socket wpa_wlan0 dgram 660 wifi wifi
+    disabled
+    oneshot
+
