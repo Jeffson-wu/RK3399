@@ -194,6 +194,21 @@
 		enable-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
 	};
 
+
+        clkin_gmac: external-gmac-clock {
+                compatible = "fixed-clock";
+                clock-frequency = <125000000>;
+                clock-output-names = "clkin_gmac";
+                #clock-cells = <0>;
+        };
+
+        vcc_phy: vcc-phy-regulator {
+                compatible = "regulator-fixed";
+                regulator-name = "vcc_phy";
+                regulator-always-on;
+                regulator-boot-on;
+        };
+
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -205,7 +220,7 @@
 			linux,default-trigger-delay-ms = <0>;
 		};
 	};
-
+/*
 	rt5651-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -225,7 +240,66 @@
 		};
 	};
 
+*/
 
+
+/*        sound {
+                status = "okay";
+                compatible = "simple-audio-card";
+                simple-audio-card,format = "i2s";
+               	simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "ti,pcm1808-codec";
+                simple-audio-card,widgets =
+                        "Line", "Line";
+                simple-audio-card,routing =
+                        "Line", "Capture";
+                simple-audio-card,cpu {
+               		sound-dai = <&i2s0>;
+                };
+                simple-audio-card,codec {
+                        sound-dai = <&pcm1808>;
+			clocks = <&cru SCLK_I2S_8CH_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s_8ch_mclk>;
+                };
+        };
+
+	pcm1808: pcm1808 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,pcm1808";
+
+	};*/
+
+        sound {
+                status = "okay";
+                compatible = "simple-audio-card";
+                simple-audio-card,format = "i2s";
+               	simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "ti,pcm512x-codec";
+                simple-audio-card,widgets =
+                        "Line", "Line In Modem",
+			"Line", "Line Out Modem";
+                simple-audio-card,routing =
+                         "Line In Modem", "LOUTL",
+                         "Line Out Modem", "LOUTR";
+                simple-audio-card,cpu {
+                        sound-dai = <&i2s0>;
+                };
+                simple-audio-card,codec {
+                        sound-dai = <&pcm512x>;
+			clocks = <&cru SCLK_I2S_8CH_OUT>;
+                	clock-names = "mclk";
+                	pinctrl-names = "default";
+                	pinctrl-0 = <&i2s_8ch_mclk>;
+                };
+        };
+
+	pcm512x: pcm512x {
+		#sound-dai-cells = <0>;
+		compatible = "ti,pcm512x";
+
+	};
 	joystick1 {
 		compatible = "gpio-joystick";
 
@@ -437,27 +511,27 @@
 		status = "okay";
 
                 version-a {
-                        label = "version first bit";
+                        label = "gpio1-a0";
                         gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
                 };
 
                 version-b {
-                        label = "version second it";
+                        label = "gpio1-a1";
                         gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
                 };
 
                 version-c {
-                        label = "version third bit";
+                        label = "gpio1-b5";
                         gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
                 };
 
                 version-d {
-                        label = "version fourth bit";
+                        label = "gpio1-c2";
                         gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
                 };
 
                 version-e {
-                        label = "version fifth bit";
+                        label = "gpio1-c4";
                         gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
                 };
 	};
@@ -475,6 +549,15 @@
 			sound-dai = <&hdmi>;
 		};
 	};
+
+	/* DP hot plug detect */
+	virtual_pd: virtual-pd {
+        	compatible = "linux,extcon-usbc-virtual-pd";
+       		det-gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;	/* DP_HPD */
+		vpd-data-role = "display-port";
+		vpd-super-speed;
+	};
+
 };
 
 &cpu_l0 {
@@ -855,9 +938,11 @@
 	rockchip,capture-channels = <2>;
 	#sound-dai-cells = <0>;
 
+
 	assigned-clocks = <&cru SCLK_I2S0_DIV>;
 	assigned-clock-parents = <&cru PLL_GPLL>;
 };
+
 
 // Codec - ALC5651
 &i2c1 {
@@ -878,6 +963,20 @@
 	};
 };
 
+/*
+// pcm512x codec
+&i2c1 {
+        status = "okay";
+        i2c-scl-rising-time-ns = <300>;
+        i2c-scl-falling-time-ns = <15>;
+
+        pcm5122: pcm5122@98 {
+                status = "okay";
+                compatible = "ti,pcm5122";
+                reg = <0x98>;
+        };
+};
+*/
 // M2L
 &i2c4 {
 	status = "okay";
@@ -912,6 +1011,22 @@
 	status = "okay";
 	pinctrl-names = "active";
 	pinctrl-0 = <&pwm2_pin_pull_down>;
+};
+
+&gmac {
+        phy-supply = <&vcc_phy>;
+        phy-mode = "rgmii";
+        clock_in_out = "input";
+        snps,reset-gpio = <&gpio3 15 GPIO_ACTIVE_LOW>;
+        snps,reset-active-low;
+        snps,reset-delays-us = <0 10000 50000>;
+        assigned-clocks = <&cru SCLK_RMII_SRC>;
+        assigned-clock-parents = <&clkin_gmac>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&rgmii_pins>;
+        tx_delay = <0x28>;
+        rx_delay = <0x11>;
+        status = "okay";
 };
 
 &rockchip_suspend {
@@ -967,10 +1082,6 @@
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
 	rockchip,hw-tshut-temp = <120000>;
 	status = "okay";
-};
-
-&tcphy0 {
-	status = "disabled";
 };
 
 &u2phy0 {
@@ -1127,6 +1238,14 @@
 				<2 10 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
+	vpd {
+		vpd0_int: vpd0-int {
+			rockchip,pins =
+				<4 23 RK_FUNC_GPIO &pcfg_pull_up>;
+			};
+	};
+
 };
 
 &dmac_bus {
